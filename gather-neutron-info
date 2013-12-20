@@ -1,0 +1,51 @@
+#!/bin/sh
+#
+# This collects a variety of Neutron information from the perspective of the
+# current user and packages into an archive named "neutron-HOST-DATE.tar.gz" in
+# the current directory.
+
+cleanup () {
+	sed 1d | tr -d '\r'
+}
+
+workdir=$(mktemp -d neutronXXXXXX)
+trap "cd $PWD; rm -rf $workdir" EXIT
+
+(
+cd $workdir
+
+echo "+ Examining networks"
+neutron net-list > net-list.txt
+neutron net-list -Fid -fcsv --quote none | cleanup |
+while read net; do
+	echo "  + network $net"
+	neutron net-show $net > net-$net.txt
+done
+
+echo "+ Examining subnets"
+neutron subnet-list > subnet-list.txt
+neutron subnet-list -Fid -fcsv --quote none | cleanup |
+while read subnet; do
+	echo "  + subnet $subnet"
+	neutron subnet-show $subnet > subnet-$subnet.txt
+done
+
+echo "+ Examining routers"
+neutron router-list > router-list.txt
+neutron router-list -Fid -fcsv --quote none | cleanup |
+while read router; do
+	echo "  + router $router"
+	neutron router-show $router > router-$router.txt
+	neutron router-port-list $router > router-$router-ports.txt
+done
+
+tar -cz -f neutron.tar.gz *.txt
+)
+
+hostname=${HOSTNAME%%.*}
+datestamp=$(date +%Y-%m-%dT%H-%M-%S)
+output=neutron-$hostname-$datestamp.tar.gz
+
+mv $workdir/neutron.tar.gz $output
+ls -l $output
+

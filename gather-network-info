@@ -1,0 +1,137 @@
+#!/bin/sh
+
+code () {
+	sed 's/^/    /'
+}
+
+nsrun () {
+	local ns=$1
+	shift
+
+	if [ "$ns" = "global" ]; then
+		"$@"
+	else
+		ip netns exec $ns "$@"
+	fi
+}
+
+toc=$(mktemp tocXXXXXX)
+body=$(mktemp bodyXXXXXX)
+trap 'rm -f $toc $body' EXIT
+
+cat > $toc <<EOF
+# Namespace survey
+
+## Contents
+
+EOF
+
+( echo global; ip netns ) | while read ns; do
+
+interfaces=$(nsrun $ns ip addr | sed '/^1: lo:/,/^[0-9]*:/ { /^1:/ d; /^ /d }')
+if [ -z "$interfaces" ]; then
+	echo "$ns: skipping namespace with no interfaces" >&2
+	continue
+fi
+
+echo "- [$ns](#$ns)" >> $toc
+if [ "$ns" = global ]; then
+	cat <<-EOF >> $toc
+	    - [ovs-vsctl show](#ovs_vsctl_show)
+	    - [ovs-dptcl show](#ovs_dptcl_show)
+	EOF
+fi
+
+cat <<EOF >> $body
+
+<a name="$ns"></a>
+## $ns
+EOF
+
+if [ "$ns" = global ]; then
+
+	cat <<-EOF >>$body
+
+	<a name="ovs_vsctl_show"></a>
+	### OVS: ovs-vsctl show
+
+	$(ovs-vsctl show | code)
+
+	<a name="ovs_dpctl_show"></a>
+	### OVS: ovs-dpctl show
+
+	$(ovs-dpctl show | code)
+
+	EOF
+
+	for dev in $(ovs-vsctl list-br); do
+		echo "    - [ovs-ofctl show $dev](#ovs_ofctl_show_$dev)" >> $toc
+
+		cat <<-EOF >>$body
+		
+		<a name="ovs_ofctl_show_$dev"></a>
+		### OVS: ovs-ofctl dump-flows $dev
+
+		$(ovs-ofctl dump-flows $dev | code)
+		EOF
+	done
+fi
+
+cat <<-EOF >> $toc
+    - [interfaces](#${ns}_interfaces)
+    - [routes](#${ns}_routes)
+    - [iptables (filter)](#${ns}_iptables_filter)
+    - [iptables (nat)](#${ns}_iptables_nat)
+    - [tcp connections](#${ns}_net_tcp)
+    - [udp connections](#${ns}_net_udp)
+EOF
+
+cat <<EOF >>$body
+
+<a name="${ns}_interfaces"></a>
+### Interfaces
+
+$(nsrun $ns ip addr | sed '/^1: lo:/,/^[0-9]*:/ { /^1:/ d; /^ /d }' | code)
+
+<a name="${ns}_routes"></a>
+### Routes
+
+$(nsrun $ns ip route | code)
+
+<a name="${ns}_iptables_filter"></a>
+### Iptables: filter
+
+$(nsrun $ns iptables -S |  code)
+
+<a name="${ns}_iptables_nat"></a>
+### Iptables: nat
+
+$(nsrun $ns iptables -t nat -S |  code)
+
+<a name="${ns}_net_tcp"></a>
+### Connections: tcp
+
+$(nsrun $ns netstat -tan | code)
+
+<a name="${ns}_net_udp"></a>
+### Connections: udp
+
+$(nsrun $ns netstat -uan | code)
+
+EOF
+
+if [ "$ns" != "global" ]; then
+	echo "    - [processes](#${ns}_processes)" >> $toc
+	cat <<-EOF >> $body
+
+	<a name="${ns}_processes"></a>
+	### Processes
+
+	$(ip netns pids $ns | xargs -iPID ps -pPID -fh | code)
+	EOF
+fi
+
+done
+
+cat $toc $body
+
