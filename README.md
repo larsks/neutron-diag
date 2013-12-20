@@ -24,9 +24,9 @@ You would run it like this:
 The output is Markdown formatted, which means you can convert it into
 HTML using any of a variety of Markdown processors (e.g.,
 `python-markdown`, `marked`, `python-markdown2`, `pandoc`, etc).  For
-example, using `pandoc`:
+example, using `marked`:
 
-    pandoc -f markdown -t html -o network.html network.md
+    marked network.md > network.html
 
 ## gather-neutron-info
 
