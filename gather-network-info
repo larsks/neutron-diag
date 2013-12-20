@@ -1,10 +1,6 @@
 #!/bin/sh
 
-code () {
-	sed 's/^/    /'
-}
-
-nsrun () {
+nsexec () {
 	local ns=$1
 	shift
 
@@ -15,123 +11,63 @@ nsrun () {
 	fi
 }
 
-toc=$(mktemp tocXXXXXX)
-body=$(mktemp bodyXXXXXX)
-trap 'rm -f $toc $body' EXIT
+workdir=$(mktemp -d networkXXXXXX)
+trap "cd $PWD; rm -rf $workdir" EXIT
 
-cat > $toc <<EOF
-# Namespace survey
+hostname=${HOSTNAME%%.*}
+datestamp=$(date +%Y-%m-%dT%H-%M-%S)
+output=network-${hostname}-${datestamp}
+startdir=$PWD
 
-## Contents
+(
 
-EOF
+cd $workdir
 
-( echo global; ip netns ) | while read ns; do
+hostname > hostname.txt
 
-interfaces=$(nsrun $ns ip addr | sed '/^1: lo:/,/^[0-9]*:/ { /^1:/ d; /^ /d }')
-if [ -z "$interfaces" ]; then
-	echo "$ns: skipping namespace with no interfaces" >&2
-	continue
-fi
+echo "+ gathering ovs information"
+ovs-vsctl show > ovs-vsctl-show.txt
+ovs-dpctl show > ovs-dpctl-show.txt
 
-echo "- [$ns](#$ns)" >> $toc
-if [ "$ns" = global ]; then
-	cat <<-EOF >> $toc
-	    - [ovs-vsctl show](#ovs_vsctl_show)
-	    - [ovs-dptcl show](#ovs_dptcl_show)
-	EOF
-fi
-
-cat <<EOF >> $body
-
-<a name="$ns"></a>
-## $ns
-EOF
-
-if [ "$ns" = global ]; then
-
-	cat <<-EOF >>$body
-
-	<a name="ovs_vsctl_show"></a>
-	### OVS: ovs-vsctl show
-
-	$(ovs-vsctl show | code)
-
-	<a name="ovs_dpctl_show"></a>
-	### OVS: ovs-dpctl show
-
-	$(ovs-dpctl show | code)
-
-	EOF
-
-	for dev in $(ovs-vsctl list-br); do
-		echo "    - [ovs-ofctl show $dev](#ovs_ofctl_show_$dev)" >> $toc
-
-		cat <<-EOF >>$body
-		
-		<a name="ovs_ofctl_show_$dev"></a>
-		### OVS: ovs-ofctl dump-flows $dev
-
-		$(ovs-ofctl dump-flows $dev | code)
-		EOF
-	done
-fi
-
-cat <<-EOF >> $toc
-    - [interfaces](#${ns}_interfaces)
-    - [routes](#${ns}_routes)
-    - [iptables (filter)](#${ns}_iptables_filter)
-    - [iptables (nat)](#${ns}_iptables_nat)
-    - [tcp connections](#${ns}_net_tcp)
-    - [udp connections](#${ns}_net_udp)
-EOF
-
-cat <<EOF >>$body
-
-<a name="${ns}_interfaces"></a>
-### Interfaces
-
-$(nsrun $ns ip addr | sed '/^1: lo:/,/^[0-9]*:/ { /^1:/ d; /^ /d }' | code)
-
-<a name="${ns}_routes"></a>
-### Routes
-
-$(nsrun $ns ip route | code)
-
-<a name="${ns}_iptables_filter"></a>
-### Iptables: filter
-
-$(nsrun $ns iptables -S |  code)
-
-<a name="${ns}_iptables_nat"></a>
-### Iptables: nat
-
-$(nsrun $ns iptables -t nat -S |  code)
-
-<a name="${ns}_net_tcp"></a>
-### Connections: tcp
-
-$(nsrun $ns netstat -tan | code)
-
-<a name="${ns}_net_udp"></a>
-### Connections: udp
-
-$(nsrun $ns netstat -uan | code)
-
-EOF
-
-if [ "$ns" != "global" ]; then
-	echo "    - [processes](#${ns}_processes)" >> $toc
-	cat <<-EOF >> $body
-
-	<a name="${ns}_processes"></a>
-	### Processes
-
-	$(ip netns pids $ns | xargs -iPID ps -pPID -fh | code)
-	EOF
-fi
-
+ovs-vsctl list-br | tee ovs-bridges.txt |
+while read br; do
+	echo "  - device $br"
+	ovs-ofctl dump-flows $br > ovs-ofctl-dump-flows-$br.txt
 done
 
-cat $toc $body
+(echo global; ip netns) |
+while read ns; do
+	echo "+ examing namespaces $ns" >&2
+
+	interfaces=$(nsexec $ns ls /sys/class/net | grep -v lo)
+	if ! [ "$interfaces" ]; then
+		echo "  - skipping emtpy namespace" >&2
+		echo $ns >> namespace-inactive.txt
+		continue
+	else
+		echo $ns >> namespace-active.txt
+	fi
+
+	mkdir -p $ns/{interfaces,iptables,connections}
+
+	for interface in $interfaces; do
+		nsexec $ns ip addr show dev $interface > $ns/interfaces/$interface.txt
+	done
+
+	nsexec $ns ip route show > $ns/routes.txt
+	nsexec $ns iptables-save -t filter > $ns/iptables/filter.txt
+	nsexec $ns iptables-save -t nat > $ns/iptables/nat.txt
+	
+	if [ "$ns" != global ]; then
+		ip netns pids $ns | xargs -iPID ps -pPID -fh > $ns/processes.txt
+	fi
+
+	nsexec $ns netstat -tan | egrep -v 'TIME_WAIT' > $ns/connections/tcp.txt
+	nsexec $ns netstat -uan > $ns/connections/udp.txt
+done
+
+tar -cz -f $startdir/${output}.tar.gz --xform "s|^|$output/|" *
+)
+
+ls -l $startdir/${output}.tar.gz
 

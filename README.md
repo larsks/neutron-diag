@@ -7,7 +7,8 @@ Neutron diagnostics
 
 This script gathers network information for all of the active network
 namespaces on your system, where "active" in this context means "has
-interfaces other than `lo`".
+interfaces other than `lo`".  It outputs a tarball in your current
+directory named `network-HOST-DATE.tar.gz`.
 
 For each namespace, the script collects information about:
 
@@ -21,21 +22,119 @@ Additionally, the script collects some information from OVS.
 
 You might run it like this:
 
-    sudo ./gather-network-info > network.md
+    sudo ./gather-network-info
 
-The output is Markdown formatted, which means you can convert it into
-HTML using any of a variety of Markdown processors (e.g.,
-`python-markdown`, `marked`, `python-markdown2`, `pandoc`, etc).  For
-example, using `marked`:
+The contents of the tarball will look something like this:
 
-    marked network.md > network.html
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/global/
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/global/routes.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/global/interfaces/
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/global/interfaces/tun0.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/global/interfaces/qvo26b806a7-02.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/global/interfaces/em1.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/global/interfaces/br-int.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/global/interfaces/ovs-system.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/global/interfaces/qvb26b806a7-02.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/global/interfaces/qvb7a02b625-32.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/global/interfaces/br-ex.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/global/interfaces/tap7a02b625-32.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/global/interfaces/tap26b806a7-02.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/global/interfaces/qvo7a02b625-32.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/global/interfaces/qbr7a02b625-32.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/global/interfaces/virbr1.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/global/interfaces/wlp3s0.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/global/interfaces/virbr2.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/global/interfaces/qbr26b806a7-02.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/global/connections/
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/global/connections/tcp.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/global/connections/udp.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/global/iptables/
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/global/iptables/filter.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/global/iptables/nat.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/hostname.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/namespace-active.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/namespace-inactive.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/ovs-bridges.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/ovs-dpctl-show.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/ovs-ofctl-dump-flows-br-ex.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/ovs-ofctl-dump-flows-br-int.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/ovs-vsctl-show.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-3ff9b903-e921-4752-a26f-cba8f1433992/
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-3ff9b903-e921-4752-a26f-cba8f1433992/routes.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-3ff9b903-e921-4752-a26f-cba8f1433992/interfaces/
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-3ff9b903-e921-4752-a26f-cba8f1433992/interfaces/tap786bdb61-98.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-3ff9b903-e921-4752-a26f-cba8f1433992/connections/
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-3ff9b903-e921-4752-a26f-cba8f1433992/connections/tcp.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-3ff9b903-e921-4752-a26f-cba8f1433992/connections/udp.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-3ff9b903-e921-4752-a26f-cba8f1433992/processes.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-3ff9b903-e921-4752-a26f-cba8f1433992/iptables/
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-3ff9b903-e921-4752-a26f-cba8f1433992/iptables/filter.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-3ff9b903-e921-4752-a26f-cba8f1433992/iptables/nat.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-a2be4bdd-a44a-4e64-ab16-a3297e479a31/
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-a2be4bdd-a44a-4e64-ab16-a3297e479a31/routes.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-a2be4bdd-a44a-4e64-ab16-a3297e479a31/interfaces/
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-a2be4bdd-a44a-4e64-ab16-a3297e479a31/interfaces/tap65db9373-99.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-a2be4bdd-a44a-4e64-ab16-a3297e479a31/connections/
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-a2be4bdd-a44a-4e64-ab16-a3297e479a31/connections/tcp.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-a2be4bdd-a44a-4e64-ab16-a3297e479a31/connections/udp.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-a2be4bdd-a44a-4e64-ab16-a3297e479a31/processes.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-a2be4bdd-a44a-4e64-ab16-a3297e479a31/iptables/
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-a2be4bdd-a44a-4e64-ab16-a3297e479a31/iptables/filter.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-a2be4bdd-a44a-4e64-ab16-a3297e479a31/iptables/nat.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-ad1a977e-8a5f-4a22-b445-742094cde1f2/
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-ad1a977e-8a5f-4a22-b445-742094cde1f2/routes.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-ad1a977e-8a5f-4a22-b445-742094cde1f2/interfaces/
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-ad1a977e-8a5f-4a22-b445-742094cde1f2/interfaces/tap7e50b0bb-c5.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-ad1a977e-8a5f-4a22-b445-742094cde1f2/connections/
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-ad1a977e-8a5f-4a22-b445-742094cde1f2/connections/tcp.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-ad1a977e-8a5f-4a22-b445-742094cde1f2/connections/udp.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-ad1a977e-8a5f-4a22-b445-742094cde1f2/processes.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-ad1a977e-8a5f-4a22-b445-742094cde1f2/iptables/
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-ad1a977e-8a5f-4a22-b445-742094cde1f2/iptables/filter.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qdhcp-ad1a977e-8a5f-4a22-b445-742094cde1f2/iptables/nat.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qrouter-0511d9f6-9920-4203-bb58-11d505fd4399/
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qrouter-0511d9f6-9920-4203-bb58-11d505fd4399/routes.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qrouter-0511d9f6-9920-4203-bb58-11d505fd4399/interfaces/
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qrouter-0511d9f6-9920-4203-bb58-11d505fd4399/interfaces/qr-66c6b76e-b7.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qrouter-0511d9f6-9920-4203-bb58-11d505fd4399/interfaces/qg-3169ffbe-57.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qrouter-0511d9f6-9920-4203-bb58-11d505fd4399/connections/
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qrouter-0511d9f6-9920-4203-bb58-11d505fd4399/connections/tcp.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qrouter-0511d9f6-9920-4203-bb58-11d505fd4399/connections/udp.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qrouter-0511d9f6-9920-4203-bb58-11d505fd4399/processes.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qrouter-0511d9f6-9920-4203-bb58-11d505fd4399/iptables/
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qrouter-0511d9f6-9920-4203-bb58-11d505fd4399/iptables/filter.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qrouter-0511d9f6-9920-4203-bb58-11d505fd4399/iptables/nat.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qrouter-2a2b2640-6f9a-42f8-b269-ab8bb5cd9fa3/
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qrouter-2a2b2640-6f9a-42f8-b269-ab8bb5cd9fa3/routes.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qrouter-2a2b2640-6f9a-42f8-b269-ab8bb5cd9fa3/interfaces/
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qrouter-2a2b2640-6f9a-42f8-b269-ab8bb5cd9fa3/interfaces/qr-5b52ec34-86.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qrouter-2a2b2640-6f9a-42f8-b269-ab8bb5cd9fa3/interfaces/qg-f69c19b8-5a.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qrouter-2a2b2640-6f9a-42f8-b269-ab8bb5cd9fa3/connections/
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qrouter-2a2b2640-6f9a-42f8-b269-ab8bb5cd9fa3/connections/tcp.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qrouter-2a2b2640-6f9a-42f8-b269-ab8bb5cd9fa3/connections/udp.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qrouter-2a2b2640-6f9a-42f8-b269-ab8bb5cd9fa3/processes.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qrouter-2a2b2640-6f9a-42f8-b269-ab8bb5cd9fa3/iptables/
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qrouter-2a2b2640-6f9a-42f8-b269-ab8bb5cd9fa3/iptables/filter.txt
+    network-lkellogg-pk115wp-2013-12-20T15-55-04/qrouter-2a2b2640-6f9a-42f8-b269-ab8bb5cd9fa3/iptables/nat.txt
+
+## render-network-info
+
+This takes as an argument the tarball produced by
+`gather-network-info` and generates Markdown formatted output on
+`stdout`.  You can convert this to HTML using any of a variety of
+Markdown processes, e.g.:
+
+    ./render-network-info network-lkellogg-pk115wp-2013-12-20T15-55-04.tar.gz |
+      marked > network-info.html
 
 ## gather-neutron-info
 
-This script generates a tarball in your current directory called
-`neutron-HOST-DATE.tar.gz` (where *HOST* and *DATE* are replaced by
-your current hostname and the current date/time) containing the output
-of:
+This script gather Neutron configuration information using your
+current OpenStack credentials (`OS_AUTH_URL`, `OS_USERNAME`,
+`OS_TENANT_NAME`, etc).  It outputs a tarball in your current
+directory named `neutron-HOST-DATE.tar.gz`.
+
+This scripts collects the output of:
 
 - `neutron net-list`
 - `neutron subnet-list`
@@ -44,6 +143,10 @@ of:
 ...and the corresponding `show` command for each of the networks,
 subnets, and routers discovered.  It also collects the output of
 `router-port-list` for each router.
+
+You might run it like this:
+
+    ./gather-neutron-info
 
 The contents of the tarball will look something like this:
 

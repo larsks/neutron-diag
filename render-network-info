@@ -1,0 +1,146 @@
+#!/bin/bash
+
+code () {
+	local indent=${1:-4}
+	local str
+
+	str=$(printf "%${indent}s")
+	sed "s/^/$str/"
+}
+
+# This mess builds our table of contents for us. While some
+# markdown implementations have toc generation capabilities, not
+# all do, and we want our output to be self-contained.
+header () {
+	local level=$1
+	local title=$2
+	local ns=$3
+
+	local hdr
+	local stub
+
+	# Converts something like "A name with 'spaces' and punctuation"
+	# into something like "a-name-with-spaces-and-punctuation".
+	hdr=$(printf "%${level}s" | tr ' ' '#')
+	stub=$(tr -dc '[a-zA-Z0-9 -]' <<< $title)
+	stub=${stub// /-}
+	stub=${stub,,}
+	stub="${ns:+$ns-}$stub"
+
+	echo "<a name=\"$stub\"></a>"
+	echo "$hdr $title"
+
+	local indent
+	indent=$(echo $hdr | sed 's/.//' | sed 's/./  /g')
+	echo "${indent}- [$title](#$stub)" >> $toc
+
+}
+
+if [[ $# -lt 1 ]]; then
+	echo "ERROR: you must provide the name of an archive" >&2
+	exit 1
+fi
+
+archive=$1
+
+if ! [[ -f $archive ]]; then
+	echo "ERROR: archive $archive does not exist" >&2
+	exit 1
+fi
+
+head=$(mktemp headXXXXXX)
+toc=$(mktemp tocXXXXXX)
+body=$(mktemp bodyXXXXXX)
+trap 'rm -f $head $toc $body' EXIT
+
+# Extract hostname from archive
+hostname=$(tar -xO -f $archive '*/hostname.txt')
+
+cat > $head <<EOF
+# Namespace survey for $hostname
+
+EOF
+
+cat <<EOF >> $body
+
+$(header 2 OVS)
+
+$(header 3 "ovs-vsctl show")
+
+$(tar -xO -f $archive '*/ovs-vsctl-show.txt' | code )
+
+$(header 3 "ovs-dptctl show")
+
+$(tar -xO -f $archive '*/ovs-dpctl-show.txt' | code )
+
+EOF
+
+tar -xO -f $archive '*/ovs-bridges.txt' |
+while read brdev; do
+	cat <<-EOF >>$body
+	
+	$(header 3 "ovs-ofctl dump-flows $brdev")
+
+	$(tar -xO -f $archive "*/ovs-ofctl-dump-flows-${brdev}.txt" | code)
+	EOF
+done
+
+tar -xO -f $archive '*/namespace-active.txt' | sort |
+while read ns; do
+
+	cat <<-EOF >>$body
+	
+	$(header 2 "namespace $ns")
+
+	$(header 3 "interfaces" $ns)
+
+	EOF
+
+	tar -t -f $archive "*/$ns/interfaces/*" | sort | while read path; do
+		iface=${path##*/}
+		iface=${iface%.txt}
+
+		cat <<-EOF >>$body
+		
+		- $iface
+
+		$(tar -xO -f $archive $path | code 8)
+		EOF
+	done
+
+	cat <<-EOF >>$body
+	
+	$(header 3 routes $ns)
+
+	$(tar -xO -f $archive "*/$ns/routes.txt" | code)
+
+	$(header 3 "iptables: filter" $ns)
+
+	$(tar -xO -f $archive "*/$ns/iptables/filter.txt" | code)
+
+	$(header 3 "iptables: nat" $ns)
+
+	$(tar -xO -f $archive "*/$ns/iptables/nat.txt" | code)
+
+	$(header 3 "connections: tcp" $ns)
+
+	$(tar -xO -f $archive "*/$ns/connections/tcp.txt" | code)
+
+	$(header 3 "connections: udp" $ns)
+
+	$(tar -xO -f $archive "*/$ns/connections/udp.txt" | code)
+	EOF
+
+	if tar -t -f $archive "*/$ns/processes.txt" > /dev/null 2>&1; then
+		cat <<-EOF >>$body
+		
+		$(header 3 processes $ns)
+
+		$(tar -xO -f $archive "*/$ns/processes.txt" | code)
+		EOF
+	fi
+
+done
+
+cat $head $toc $body
+
