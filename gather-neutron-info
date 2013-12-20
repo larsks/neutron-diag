@@ -11,6 +11,10 @@ cleanup () {
 workdir=$(mktemp -d neutronXXXXXX)
 trap "cd $PWD; rm -rf $workdir" EXIT
 
+hostname=${HOSTNAME%%.*}
+datestamp=$(date +%Y-%m-%dT%H-%M-%S)
+output=neutron-${hostname}-${datestamp}
+
 (
 cd $workdir
 
@@ -39,13 +43,8 @@ while read router; do
 	neutron router-port-list $router > router-$router-ports.txt
 done
 
-tar -cz -f neutron.tar.gz *.txt
+tar -cz -f ../${output}.tar.gz --xform "s|^|$output/|" *.txt
 )
 
-hostname=${HOSTNAME%%.*}
-datestamp=$(date +%Y-%m-%dT%H-%M-%S)
-output=neutron-$hostname-$datestamp.tar.gz
-
-mv $workdir/neutron.tar.gz $output
-ls -l $output
-
+ls -l ${output}.tar.gz
+outout=neutron-${hostname}-${datestamp}
