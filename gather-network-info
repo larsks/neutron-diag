@@ -24,6 +24,7 @@ startdir=$PWD
 cd $workdir
 
 hostname > hostname.txt
+date +%s > created.txt
 
 echo "+ gathering ovs information"
 ovs-vsctl show > ovs-vsctl-show.txt
