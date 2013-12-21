@@ -14,13 +14,18 @@ trap "cd $PWD; rm -rf $workdir" EXIT
 hostname=${HOSTNAME%%.*}
 datestamp=$(date +%Y-%m-%dT%H-%M-%S)
 output=neutron-${hostname}-${datestamp}
+startdir=$PWD
 
 (
 cd $workdir
 
+echo $OS_TENANT_NAME > tenant_name.txt
+hostname > hostname.txt
+date +%s > created.txt
+
 echo "+ Examining networks"
 neutron net-list > net-list.txt
-neutron net-list -Fid -fcsv --quote none | cleanup |
+neutron net-list -Fid -fcsv --quote none | cleanup | tee networks.txt |
 while read net; do
 	echo "  + network $net"
 	neutron net-show $net > net-$net.txt
@@ -28,7 +33,7 @@ done
 
 echo "+ Examining subnets"
 neutron subnet-list > subnet-list.txt
-neutron subnet-list -Fid -fcsv --quote none | cleanup |
+neutron subnet-list -Fid -fcsv --quote none | cleanup | tee subnets.txt |
 while read subnet; do
 	echo "  + subnet $subnet"
 	neutron subnet-show $subnet > subnet-$subnet.txt
@@ -36,15 +41,15 @@ done
 
 echo "+ Examining routers"
 neutron router-list > router-list.txt
-neutron router-list -Fid -fcsv --quote none | cleanup |
+neutron router-list -Fid -fcsv --quote none | cleanup | tee routers.txt |
 while read router; do
 	echo "  + router $router"
 	neutron router-show $router > router-$router.txt
 	neutron router-port-list $router > router-$router-ports.txt
 done
 
-tar -cz -f ../${output}.tar.gz --xform "s|^|$output/|" *.txt
+tar -cz -f $startdir/${output}.tar.gz --xform "s|^|$output/|" *.txt
 )
 
 ls -l ${output}.tar.gz
-outout=neutron-${hostname}-${datestamp}
+
