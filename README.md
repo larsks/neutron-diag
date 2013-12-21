@@ -166,6 +166,16 @@ The contents of the tarball will look something like this:
     neutron-lkellogg-pk115wp-2013-12-20T14-26-02/subnet-cae5afad-217c-4e8b-8413-cdbce5214a5d.txt
     neutron-lkellogg-pk115wp-2013-12-20T14-26-02/subnet-list.txt
 
+## render-neutron-info
+
+This takes as an argument the tarball produced by
+`gather-neutron-info` and generates Markdown formatted output on
+`stdout`.  You can convert this to HTML using any of a variety of
+Markdown processes, e.g.:
+
+    ./render-neutron-info neutron-lkellogg-pk115wp-2013-12-20T15-55-04.tar.gz |
+      marked > neutron-info.html
+
 ## Reporting bugs
 
 If you encounter problems with either of these scripts or if you have
