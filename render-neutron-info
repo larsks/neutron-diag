@@ -1,0 +1,116 @@
+#!/bin/bash
+
+code () {
+	local indent=${1:-4}
+	local str
+
+	str=$(printf "%${indent}s")
+	sed "s/^/$str/"
+}
+
+# This mess builds our table of contents for us. While some
+# markdown implementations have toc generation capabilities, not
+# all do, and we want our output to be self-contained.
+header () {
+	local level=$1
+	local title=$2
+	local ns=$3
+
+	local hdr
+	local stub
+
+	# Converts something like "A name with 'spaces' and punctuation"
+	# into something like "a-name-with-spaces-and-punctuation".
+	hdr=$(printf "%${level}s" | tr ' ' '#')
+	stub=$(tr -dc '[a-zA-Z0-9 -]' <<< $title)
+	stub=${stub// /-}
+	stub=${stub,,}
+	stub="${ns:+$ns-}$stub"
+
+	echo "<a name=\"$stub\"></a>"
+	echo "$hdr $title"
+
+	local indent
+	indent=$(echo $hdr | sed 's/.//' | sed 's/./  /g')
+	echo "${indent}- [$title](#$stub)" >> $toc
+
+}
+
+if [[ $# -lt 1 ]]; then
+	echo "ERROR: you must provide the name of an archive" >&2
+	exit 1
+fi
+
+archive=$1
+
+if ! [[ -f $archive ]]; then
+	echo "ERROR: archive $archive does not exist" >&2
+	exit 1
+fi
+
+head=$(mktemp headXXXXXX)
+toc=$(mktemp tocXXXXXX)
+body=$(mktemp bodyXXXXXX)
+trap 'rm -f $head $toc $body' EXIT
+
+# Extract hostname from archive
+hostname=$(tar -xO -f $archive '*/hostname.txt')
+
+cat > $head <<EOF
+# Neutron configuration
+
+EOF
+
+cat <<EOF >>$body
+
+$(header 2 networks)
+
+$(tar -xO -f $archive '*/net-list.txt' | code)
+EOF
+
+tar -xO -f $archive '*/networks.txt' | 
+while read network; do
+	cat <<-EOF >>$body
+
+	$(header 3 "network $network")
+
+	$(tar -xO -f $archive "*/net-$network.txt"|code)
+	EOF
+done
+
+cat <<EOF >>$body
+$(header 2 subnets)
+
+$(tar -xO -f $archive '*/subnet-list.txt' | code)
+EOF
+
+tar -xO -f $archive '*/subnets.txt' | 
+while read subnet; do
+	cat <<-EOF >>$body
+
+	$(header 3 "subnet $subnet")
+
+	$(tar -xO -f $archive "*/subnet-$subnet.txt"|code)
+	EOF
+done
+
+cat <<EOF >>$body
+
+$(header 2 routers)
+
+$(tar -xO -f $archive '*/router-list.txt' | code)
+EOF
+
+tar -xO -f $archive '*/routers.txt' | 
+while read router; do
+	cat <<-EOF >>$body
+
+	$(header 3 "router $router")
+
+	$(tar -xO -f $archive "*/router-$router.txt"|code)
+	EOF
+done
+
+
+cat $head $toc $body
+
