@@ -1,56 +1,71 @@
 #!/bin/sh
 
-nodes=$(mktemp clusterXXXXXX)
-edges=$(mktemp edgesXXXXXX)
-peers=$(mktemp peersXXXXXX)
-trap "rm -f $nodes $edges $peers" EXIT
+topdir=$PWD
+workdir=$(mktemp -d networkXXXXXX)
+trap "cd $topdir; rm -rf $workdir" EXIT
+
+cd $workdir
 
 virsh list --name | while read instance; do
 	[ "$instance" ] || continue
+
+	echo "$instance instance global" >> nodes
 
 	for dev in $(virsh dumpxml $instance |
 		xmllint --xpath '//interface/target/@dev' -); do
 		dev=${dev#dev=\"}
 		dev=${dev%\"}
-		echo "\"$instance\" [shape=box, style=filled, color=red]" >> $nodes
-		echo "\"$instance\" -> \"$dev\"" >> $edges
+		echo "$instance $dev" >> edges
 	done
 done
 
-ovs-vsctl list-br | while read br; do
-	ovs-vsctl list-ports $br | while read port; do
-		echo "\"$br\" -> \"$port\"" >> $edges
-	done
-done
-
-sh ns-get-devs global $nodes $edges $peers
+sh $topdir/ns-get-devs global
 
 ip netns | while read ns; do
-	cat <<-EOF >> $nodes
-	subgraph "cluster_$ns" {
-	label = "$ns"
-	EOF
-
-	ip netns exec $ns sh ns-get-devs $ns $nodes $edges $peers
-
-	cat <<-EOF >> $nodes
-	}
-	EOF
+	ip netns exec $ns sh $topdir/ns-get-devs $ns
 done
 
+> seen
 while read dev ifindex peer_ifindex; do
-	peer_dev=$(awk -v peer=$peer_ifindex '$2 == peer {print $1}' $peers)
-	echo "\"$dev\" -> \"$peer_dev\"" >> $edges
-done < $peers
+	peer_dev=$(awk -v peer=$peer_ifindex '$2 == peer {print $1}' peers)
+	grep -q $peer_dev seen && continue
+
+	echo "$dev $peer_dev" >> edges
+	echo $dev >> seen
+done < peers
 
 cat <<EOF
 digraph network {
-concentrate=true
-rankdir=LR
-edge [dir=both]
+	rankdir=LR
+	edge [dir=both]
+EOF
 
-$(cat $nodes)
-$(cat $edges)
+sort -k3 nodes | awk '
+	$3 != "global" && $3 != lastns {
+		if (lastns)
+			print "}"
+		printf "subgraph \"cluster_%s\" {\n", $3
+		printf "  label=\"%s\"\n", $3
+		lastns=$3
+	}
+	$2 == "instance" {printf "\"%s\" [style=filled,color=red]\n", $1}
+	$2 == "ovsbridge" {printf "\"%s\" [style=filled,color=lightblue]\n", $1}
+	$2 == "bridge" {printf "\"%s\" [style=filled,color=green]\n", $1}
+
+	$2 !~ "instance|ovsbridge|bridge" {
+		printf "\"%s\" [style=filled,color=grey]\n", $1
+	}
+
+	END {
+		print "}"
+	}
+'
+
+awk '
+	{printf "\"%s\" -> \"%s\"\n", $1, $2}
+' edges
+
+cat <<EOF
 }
 EOF
 

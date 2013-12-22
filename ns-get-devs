@@ -1,0 +1,38 @@
+#!/bin/sh
+
+[ $# -eq 1 ] || exit 1
+
+ns=$1
+
+find /sys/class/net/ -type l |
+while read devpath; do
+	dev=${devpath##*/}
+
+	[ "$dev" = lo ] && continue
+	[ "$dev" = ovs-system ] && continue
+	
+	driver=$( ethtool -i $dev | awk '/driver:/ {print $2}' 2> /dev/null)
+
+	if [ "$driver" = veth ]; then
+		ifindex=$(cat $devpath/ifindex)
+		peer_ifindex=$(ethtool -S $dev | awk '/peer_ifindex/ {print $2}')
+		echo "$dev $ifindex $peer_ifindex" >> peers
+	elif [ "$driver" = openvswitch ] && ovs-vsctl br-exists $dev; then
+		driver=ovsbridge
+		ovs-vsctl list-ports $dev |
+		while read port; do
+			echo "$port $dev" >> edges
+		done
+	elif [ "$driver" = openvswitch ]; then
+		driver=ovsport
+	elif [ "$driver" = bridge ]; then
+		find $devpath/brif/ -type l |
+		while read portpath; do
+			port=${portpath##*/}
+			echo "$dev $port" >> edges
+		done
+	fi
+
+	echo "$dev $driver $ns" >> nodes
+done
+
