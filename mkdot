@@ -35,22 +35,35 @@ ip netns | while read ns; do
 	ip netns exec $ns sh $topdir/ns-get-devs $ns
 done
 
-# Get information about OVS patches
+# Get information about OVS ports
 > seen
 ovs-vsctl list-br |
 while read brdev; do
 	ovs-vsctl list-ports $brdev |
 	while read port; do
-		porttype=$(ovs-vsctl get Interface $port type)
-		[ "$porttype" = patch ] || continue
-		peer=$(ovs-vsctl get Interface $port options:peer)
+		# Only handle interfaces that we haven't seen
+		# previously.
+		grep -q "$port" nodes && continue
 
-		echo "$port patch global" >> nodes
-		grep -q $peer seen && continue
-		if [ "$peer" ]; then
-			echo "$port $peer" >> edges
+		porttype=$(ovs-vsctl get Interface $port type)
+		
+		if [ "$porttype" = patch ]; then
+			porttype=ovspatch
+			peer=$(ovs-vsctl get Interface $port options:peer)
+
+			if [ "$peer" ] && ! grep -q $peer seen; then
+				echo "$port $peer" >> edges
+			fi
+		elif [ "$porttype" = gre ] || [ "$porttype" = vxlan ]; then
+			porttype=ovstun
+			peer=$(ovs-vsctl get Interface $port options:remote_ip)
+			if [ "$peer" ]; then
+				echo "$port ${peer//\"/}" >> edges
+				echo "${peer//\"/} remote global" >> nodes
+			fi
 		fi
 
+		echo "$port $porttype global" >> nodes
 		echo $port >> seen
 	done
 done
@@ -73,8 +86,8 @@ digraph network {
 	edge [dir=both]
 EOF
 
-# Emit device nodes by type.
-sort -k3 nodes | awk '
+# Emit device nodes by namespace
+sort -k3,3 -k2,2 -k1,1 nodes | awk '
 	$3 != "global" && $3 != lastns {
 		if (lastns)
 			print "}"
@@ -89,14 +102,15 @@ sort -k3 nodes | awk '
 		color="grey50"
 	}
 
-	$2 == "instance" {shape="box"; color="tomato"}
-	$2 == "ovsbridge" {color="lightblue"}
-	$2 == "bridge" {color="olivedrab"}
-	$2 == "veth" {color="lightgrey"}
-	$2 == "patch" {color="gold"}
+	$2 == "instance"	{shape="box"; color="tomato"}
+	$2 == "ovsbridge"	{color="lightblue"}
+	$2 == "bridge"		{color="olivedrab"}
+	$2 == "veth"		{color="lightgrey"}
+	$2 == "ovspatch"	{shape="cds"; color="gold"}
+	$2 == "remote"		{shape="cds"; color="thistle"}
 
 	{
-		printf "\"%s\" [shape=%s, style=%s,color=%s]\n", $1, shape, style, color
+		printf "\"%s\" [shape=%s,style=%s,color=%s]\n", $1, shape, style, color
 	}
 
 	END {
