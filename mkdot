@@ -6,6 +6,10 @@ trap "cd $topdir; rm -rf $workdir" EXIT
 
 cd $workdir
 
+> nodes
+> edges
+> peers
+
 # Get a list of running instances and their associated
 # interfaces.
 virsh list --name | while read instance; do
