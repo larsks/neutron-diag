@@ -1,16 +1,18 @@
 #!/bin/sh
+#
+# This script gathers information about all of the network devices
+# visible within the current network namespace.
 
 [ $# -eq 1 ] || exit 1
 
 ns=$1
 
-find /sys/class/net/ -type l |
-while read devpath; do
-	dev=${devpath##*/}
-
+ls /sys/class/net |
+while read dev; do
 	[ "$dev" = lo ] && continue
 	[ "$dev" = ovs-system ] && continue
 	
+	devpath=/sys/class/net/$dev
 	driver=$( ethtool -i $dev | awk '/driver:/ {print $2}' 2> /dev/null)
 
 	if [ "$driver" = veth ]; then
@@ -26,9 +28,8 @@ while read devpath; do
 	elif [ "$driver" = openvswitch ]; then
 		driver=ovsport
 	elif [ "$driver" = bridge ]; then
-		find $devpath/brif/ -type l |
-		while read portpath; do
-			port=${portpath##*/}
+		ls $devpath/brif |
+		while read port; do
 			echo "$dev $port" >> edges
 		done
 	fi
