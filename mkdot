@@ -107,7 +107,8 @@ sort -k3,3 -k2,2 -k1,1 nodes | awk '
 	$2 == "bridge"		{color="olivedrab"}
 	$2 == "veth"		{color="lightgrey"}
 	$2 == "ovspatch"	{shape="cds"; color="gold"}
-	$2 == "remote"		{shape="cds"; color="thistle"}
+	$2 == "ovstun"		{shape="cds"; color="thistle"}
+	$2 == "remote"		{shape="box"; style="solid"; color="black"}
 
 	{
 		printf "\"%s\" [shape=%s,style=%s,color=%s]\n", $1, shape, style, color
