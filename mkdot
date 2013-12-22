@@ -48,9 +48,9 @@ sort -k3 nodes | awk '
 		printf "  label=\"%s\"\n", $3
 		lastns=$3
 	}
-	$2 == "instance" {printf "\"%s\" [style=filled,color=red]\n", $1}
-	$2 == "ovsbridge" {printf "\"%s\" [style=filled,color=lightblue]\n", $1}
-	$2 == "bridge" {printf "\"%s\" [style=filled,color=green]\n", $1}
+	$2 == "instance" {printf "\"%s\" [shape=box,style=filled,color=red]\n", $1}
+	$2 == "ovsbridge" {printf "\"%s\" [shape=oval,style=filled,color=lightblue]\n", $1}
+	$2 == "bridge" {printf "\"%s\" [shape=oval,style=filled,color=green]\n", $1}
 
 	$2 !~ "instance|ovsbridge|bridge" {
 		printf "\"%s\" [style=filled,color=grey]\n", $1
