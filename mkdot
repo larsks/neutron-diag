@@ -35,6 +35,26 @@ ip netns | while read ns; do
 	ip netns exec $ns sh $topdir/ns-get-devs $ns
 done
 
+# Get information about OVS patches
+> seen
+ovs-vsctl list-br |
+while read brdev; do
+	ovs-vsctl list-ports $brdev |
+	while read port; do
+		porttype=$(ovs-vsctl get Interface $port type)
+		[ "$porttype" = patch ] || continue
+		peer=$(ovs-vsctl get Interface $port options:peer)
+
+		echo "$port patch global" >> nodes
+		grep -q $peer seen && continue
+		if [ "$peer" ]; then
+			echo "$port $peer" >> edges
+		fi
+
+		echo $port >> seen
+	done
+done
+
 # Add edges for veth peer inferfaces.
 > seen
 while read dev ifindex peer_ifindex; do
@@ -63,13 +83,20 @@ sort -k3 nodes | awk '
 		lastns=$3
 	}
 
-	$2 == "instance" {printf "\"%s\" [shape=box,style=filled,color=red]\n", $1}
-	$2 == "ovsbridge" {printf "\"%s\" [shape=oval,style=filled,color=lightblue]\n", $1}
-	$2 == "bridge" {printf "\"%s\" [shape=oval,style=filled,color=green]\n", $1}
-	$2 == "veth" {printf "\"%s\" [shape=oval,style=filled,color=gray50]\n", $1}
+	{
+		style="filled"
+		shape="oval"
+		color="grey50"
+	}
 
-	$2 !~ "instance|ovsbridge|bridge|veth" {
-		printf "\"%s\" [style=filled,color=grey70]\n", $1
+	$2 == "instance" {shape="box"; color="tomato"}
+	$2 == "ovsbridge" {color="lightblue"}
+	$2 == "bridge" {color="olivedrab"}
+	$2 == "veth" {color="lightgrey"}
+	$2 == "patch" {color="gold"}
+
+	{
+		printf "\"%s\" [shape=%s, style=%s,color=%s]\n", $1, shape, style, color
 	}
 
 	END {
