@@ -102,6 +102,7 @@ sort -k3,3 -k2,2 -k1,1 nodes | awk '
 		color="grey50"
 	}
 
+	# Set node styles.
 	$2 == "instance"	{shape="box"; color="tomato"}
 	$2 == "ovsbridge"	{color="lightblue"}
 	$2 == "bridge"		{color="olivedrab"}
@@ -115,10 +116,12 @@ sort -k3,3 -k2,2 -k1,1 nodes | awk '
 	}
 
 	END {
-		print "}"
+		if (lastns != "global")
+			print "}"
 	}
 '
 
+# Emit all the edges.
 awk '
 	{printf "\"%s\" -> \"%s\"\n", $1, $2}
 ' edges
