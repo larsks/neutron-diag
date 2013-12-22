@@ -6,6 +6,8 @@ trap "cd $topdir; rm -rf $workdir" EXIT
 
 cd $workdir
 
+# Get a list of running instances and their associated
+# interfaces.
 virsh list --name | while read instance; do
 	[ "$instance" ] || continue
 
@@ -19,12 +21,17 @@ virsh list --name | while read instance; do
 	done
 done
 
+# Gather network device information from the global
+# namespace.
 sh $topdir/ns-get-devs global
 
+# Gather network device information for all of the
+# active namespaces.
 ip netns | while read ns; do
 	ip netns exec $ns sh $topdir/ns-get-devs $ns
 done
 
+# Add edges for veth peer inferfaces.
 > seen
 while read dev ifindex peer_ifindex; do
 	peer_dev=$(awk -v peer=$peer_ifindex '$2 == peer {print $1}' peers)
@@ -34,12 +41,15 @@ while read dev ifindex peer_ifindex; do
 	echo $dev >> seen
 done < peers
 
+# Generates dot output.
+
 cat <<EOF
 digraph network {
 	rankdir=LR
 	edge [dir=both]
 EOF
 
+# Emit device nodes by type.
 sort -k3 nodes | awk '
 	$3 != "global" && $3 != lastns {
 		if (lastns)
@@ -48,12 +58,14 @@ sort -k3 nodes | awk '
 		printf "  label=\"%s\"\n", $3
 		lastns=$3
 	}
+
 	$2 == "instance" {printf "\"%s\" [shape=box,style=filled,color=red]\n", $1}
 	$2 == "ovsbridge" {printf "\"%s\" [shape=oval,style=filled,color=lightblue]\n", $1}
 	$2 == "bridge" {printf "\"%s\" [shape=oval,style=filled,color=green]\n", $1}
+	$2 == "veth" {printf "\"%s\" [shape=oval,style=filled,color=gray50]\n", $1}
 
-	$2 !~ "instance|ovsbridge|bridge" {
-		printf "\"%s\" [style=filled,color=grey]\n", $1
+	$2 !~ "instance|ovsbridge|bridge|veth" {
+		printf "\"%s\" [style=filled,color=grey70]\n", $1
 	}
 
 	END {
