@@ -1,0 +1,56 @@
+#!/bin/sh
+
+nodes=$(mktemp clusterXXXXXX)
+edges=$(mktemp edgesXXXXXX)
+peers=$(mktemp peersXXXXXX)
+trap "rm -f $nodes $edges $peers" EXIT
+
+virsh list --name | while read instance; do
+	[ "$instance" ] || continue
+
+	for dev in $(virsh dumpxml $instance |
+		xmllint --xpath '//interface/target/@dev' -); do
+		dev=${dev#dev=\"}
+		dev=${dev%\"}
+		echo "\"$instance\" [shape=box, style=filled, color=red]" >> $nodes
+		echo "\"$instance\" -> \"$dev\"" >> $edges
+	done
+done
+
+ovs-vsctl list-br | while read br; do
+	ovs-vsctl list-ports $br | while read port; do
+		echo "\"$br\" -> \"$port\"" >> $edges
+	done
+done
+
+sh ns-get-devs global $nodes $edges $peers
+
+ip netns | while read ns; do
+	cat <<-EOF >> $nodes
+	subgraph "cluster_$ns" {
+	label = "$ns"
+	EOF
+
+	ip netns exec $ns sh ns-get-devs $ns $nodes $edges $peers
+
+	cat <<-EOF >> $nodes
+	}
+	EOF
+done
+
+while read dev ifindex peer_ifindex; do
+	peer_dev=$(awk -v peer=$peer_ifindex '$2 == peer {print $1}' $peers)
+	echo "\"$dev\" -> \"$peer_dev\"" >> $edges
+done < $peers
+
+cat <<EOF
+digraph network {
+concentrate=true
+rankdir=LR
+edge [dir=both]
+
+$(cat $nodes)
+$(cat $edges)
+}
+EOF
+
