@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # This collects a variety of Neutron information from the perspective of the
 # current user and packages into an archive named "neutron-HOST-DATE.tar.gz" in
@@ -7,6 +7,13 @@
 cleanup () {
 	sed 1d | tr -d '\r'
 }
+
+while getopts 'l' ch; do
+	case $ch in
+		(l) include_logs=1;;
+	esac
+done
+shift $(( $OPTIND - 1 ))
 
 workdir=$(mktemp -d neutronXXXXXX)
 trap "cd $PWD; rm -rf $workdir" EXIT
@@ -48,7 +55,13 @@ while read router; do
 	neutron router-port-list $router > router-$router-ports.txt
 done
 
-tar -cz -f $startdir/${output}.tar.gz --xform "s|^|$output/|" *.txt
+if [ "$include_logs" = 1 ]; then
+	echo "+ Including logs"
+	mkdir logs
+	cp /var/log/neutron/*.log logs/
+fi
+
+tar -cz -f $startdir/${output}.tar.gz --xform "s|^|$output/|" *
 )
 
 ls -l ${output}.tar.gz

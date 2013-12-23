@@ -129,10 +129,12 @@ Markdown processes, e.g.:
 
 ## gather-neutron-info
 
-This script gather Neutron configuration information using your
-current OpenStack credentials (`OS_AUTH_URL`, `OS_USERNAME`,
-`OS_TENANT_NAME`, etc).  It outputs a tarball in your current
-directory named `neutron-HOST-DATE.tar.gz`.
+** NB: This script must be run with valid OpenStack credentials `OS_AUTH_URL`, `OS_USERNAME`,
+`OS_TENANT_NAME`, etc) in your environment. **
+
+This script gather Neutron configuration information from the
+perspective of your current OpenStack credentials.  It outputs a
+tarball in your current directory named `neutron-HOST-DATE.tar.gz`.
 
 This scripts collects the output of:
 
@@ -143,6 +145,10 @@ This scripts collects the output of:
 ...and the corresponding `show` command for each of the networks,
 subnets, and routers discovered.  It also collects the output of
 `router-port-list` for each router.
+
+Optionally adding `-l` on the command line will cause the script to
+package up `/var/log/neutron/*.log` into the tarball as well.  Using
+`-l` probably requires that you run this script as `root`.
 
 You might run it like this:
 
