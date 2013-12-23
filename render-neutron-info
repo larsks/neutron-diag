@@ -108,6 +108,10 @@ while read router; do
 	$(header 3 "router $router")
 
 	$(tar -xO -f $archive "*/router-$router.txt"|code)
+
+	** Ports **
+
+	$(tar -xO -f $archive "*/router-$router-ports.txt"|code)
 	EOF
 done
 
