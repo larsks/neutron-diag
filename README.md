@@ -182,6 +182,18 @@ Markdown processes, e.g.:
     ./render-neutron-info neutron-lkellogg-pk115wp-2013-12-20T15-55-04.tar.gz |
       marked > neutron-info.html
 
+## mk-network-dot
+
+This script generates [dot][] format output representing the
+connectivity of network devices and network namespaces on your system.
+You can render this output using the `dot` program, part of the
+[GraphViz][] package.  For example, to generate SVG output:
+
+    sudo sh mk-network-dot | dot -Tsvg -o network.svg
+
+[dot]: http://en.wikipedia.org/wiki/DOT_%28graph_description_language%29
+[graphviz]: http://www.graphviz.org/
+
 ## Reporting bugs
 
 If you encounter problems with either of these scripts or if you have
