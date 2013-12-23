@@ -81,9 +81,8 @@ done < peers
 # Generates dot output.
 
 cat <<EOF
-digraph network {
+graph network {
 	rankdir=LR
-	edge [dir=both]
 EOF
 
 # Emit device nodes by namespace
@@ -123,7 +122,7 @@ sort -k3,3 -k2,2 -k1,1 nodes | awk '
 
 # Emit all the edges.
 awk '
-	{printf "\"%s\" -> \"%s\"\n", $1, $2}
+	{printf "\"%s\" -- \"%s\"\n", $1, $2}
 ' edges
 
 cat <<EOF
