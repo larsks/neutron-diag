@@ -55,6 +55,9 @@ while read router; do
 	neutron router-port-list $router > router-$router-ports.txt
 done
 
+echo "+ Examining ports"
+neutron port-list > port-list.txt
+
 if [ "$include_logs" = 1 ]; then
 	echo "+ Including logs"
 	mkdir logs

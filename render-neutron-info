@@ -115,6 +115,13 @@ while read router; do
 	EOF
 done
 
+cat <<EOF >>$body
+
+$(header 2 ports)
+
+$(tar -xO -f $archive '*/port-list.txt' | code)
+EOF
+
 
 cat $head $toc $body
 
